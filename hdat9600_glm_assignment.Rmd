@@ -1,0 +1,378 @@
+---
+title: "HDAT9600 Generalised Linear Models Assignment"
+subtitle: "Submission deadline is 23:59 AEST Monday 27 July 2020"
+author: "Murray Keogh"
+date: "29/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# leave this code here, but feel free to adjust the options or add some more
+# see the knitr documentation for details
+knitr::opts_chunk$set(echo = TRUE, fig.width=12, fig.height=12)
+library(dplyr)
+library(caret)
+library(ROCR)
+library(catdata)
+library(DescTools)
+library(ggplot2)
+```
+
+
+## Instructions
+
+This file is the R Markdown document in which you need to complete your HDAT9600 Generalised Linear Model assignment. This assignment is assessed and will count for 25% of the total course marks.
+
+You should now complete the tasks described below, in the spaces provided. Don't hesitate to ask the course convenor for help (use the OpenLearning environment to do that) --- but remember that these are **individual** assignments and thus what you submit should be your own work, and you need to both understand and be able to explain what you did in your solutions. The course convenor is happy to point you in the right direction and to make suggestions, but won't, of course, complete your assignment for you!
+
+Each task below attracts the indicated number of marks (out of a total of 20 marks for the assignment).
+
+
+## Task 1 (5 marks)
+The data set labour.csv is from a 1977 survey of Canadian couples and families. The variables are work, whether the female of the household undertook paid employment either full time or part time (1=did not take paid employment, 0=took paid employment), hincome, income of the male member of the household (in $1000’s), children, a factor variable deﬁning whether children were present in the household and region, a factor with levels: Atlantic, Atlantic Canada; BC, British Columbia; Ontario; Prairie, Prairie provinces; Quebec.
+
+The objective is to understand the inﬂuences on female participation in the labour force.
+
+Build a suitable model (including, if appropriate, two-way interactions). Procure the RoC and AUC for any model you propose.
+
+```{r task1-setup}
+# load the labour dataset and make it available for code in 
+# subsequent code chunks.
+
+# read in data
+lab <- read.csv('labour.csv',header=TRUE)
+
+#examine the dataset 
+summary(lab)
+head(lab)
+
+
+```
+
+```{r task1}
+# insert your R code (with comment lines if you wish) here
+
+#start by fitting simple logistic regression model with all predictors and possible interactions
+
+lab_mod <- glm(work ~ hincome + children + region + hincome*children + hincome*region + children*region, family = binomial, data=lab)
+
+#print the model summary
+
+summary(lab_mod)
+
+# search the model space for a reduced model using the step() function
+lab_mod_reduced <- step(lab_mod, trace=1)
+summary(lab_mod_reduced)
+
+#region variable and all interaction variables are dropped
+
+#check region variable on it's own to assess any significance
+
+drop1(glm(work ~ region, family = binomial, data=lab), test="Chi")
+
+#region not significant
+
+#confidence intervals for parameters hincome and children
+
+confint(lab_mod_reduced)
+
+#attain the AOC and RUC for the lab_mod_reduced model using only hincome and children
+
+#omit missing values
+lab_df <- na.omit(lab)
+#change work to yes or no
+lab_df$work_cat <- ifelse(lab_df$work==1, "yes", "no") 
+#change work to factor
+lab_df$work_cat <- as.factor(lab_df$work_cat)
+#append probability and predicted values to dataframe
+lab_df %>% mutate(predprob=predict(lab_mod_reduced, type="response")) %>%
+            mutate(pred_outcome=as.factor(ifelse(predprob < 0.5, "no", "yes"))) -> lab_df
+
+#calculate the confusion matrix
+
+confusionMatrix(lab_df$pred_outcome, lab_df$work_cat, positive = "yes")
+
+#plot the ROC using the ROCR package
+
+pred <- prediction(lab_df$predprob, lab_df$work_cat)
+perf <- performance(pred, measure = "tpr", x.measure = "fpr")
+plot(perf, col=rainbow(10))
+abline(0,1, lty=2)
+
+#calculate the AUC using the ROCR package
+
+auc <- performance(pred,measure="auc")
+auc <- auc@y.values[[1]]
+auc
+
+
+```
+From the above model summary, a female undertaking work was influenced significantly by whether the household had children and the husband's income.  The region in which the household is located was not significant, and no interaction effects between the three predictor variables were found significant. 
+
+
+## Task 2 (3 marks)
+
+In this task, you will be using the `retinopathy` dataset which comes with the _catdata_ package for R. You will need to install that package using the Packages tab in RStudio or the `install.packages()` function at R console prompt.
+
+Read the manual page for the `?` dataset for background information.
+
+The data has three outcome levels: RET=0: no retinopathy, RET=1 nonproliferative retinopathy, RET=2 advanced retinopathy or blind. For the purposes of this exercise, combine 1 and 2 into 1.
+
+Ensure that the smoking variable is a factor with appropriately ordered levels.
+
+Now fit a series of logistic regression models to the data. The first model should use `RET` as the outcome and the other four variables as predictors. Then fit additional models, each with a single pair-wise interaction term added --- so the first additional model would have the four predictors plus an interaction terms between `SM` and `DIAB`, the next model would have the four predictors plus an interaction terms between `SM` and `GH`, and so on. Make sure you have fitted models with all possible pair-wise interaction terms. Thus, each additional model should have the four predictors plus a single interaction term.
+
+Determine if the interaction term in any of the additional models is significant. Compare the goodness-of-fit of this model with the goodness-of-fit of the original model with no interaction terms, using the AIC and one of the several available pseudo-R-squared statistics. Comment on whether the model with the interaction term is preferable, if the goal is explanation, rather than prediction.
+
+```{r task2}
+
+#load data and examine the datset
+data('retinopathy',package='catdata')
+head(retinopathy)
+summary(retinopathy)
+
+#check smoking variable
+class(retinopathy$SM)
+
+#change smoking variable to ordered factor
+retinopathy$SM <- factor(retinopathy$SM, ordered = TRUE,levels = c(0, 1))
+class(retinopathy$SM)
+levels(retinopathy$SM)
+
+
+#combine RET 1,2 into 1
+#check frequency of each
+
+retinopathy %>% group_by(RET) %>% summarise(n())
+
+retinopathy$RET <- ifelse(retinopathy$RET == 2,1,retinopathy$RET)
+
+retinopathy %>% group_by(RET) %>% summarise(n())
+
+#fit logistic regressions for all variables and then each with a single pair-wise interaction term
+
+ret_mod_1 <- glm(RET ~ SM + DIAB + GH + BP, family = binomial, data=retinopathy)
+
+ret_mod_2 <- glm(RET ~ SM + DIAB + GH + BP + SM*DIAB, family = binomial, data=retinopathy)
+
+ret_mod_3 <- glm(RET ~ SM + DIAB + GH + BP + SM*GH, family = binomial, data=retinopathy)
+
+ret_mod_4 <- glm(RET ~ SM + DIAB + GH + BP + SM*BP, family = binomial, data=retinopathy)
+
+ret_mod_5 <- glm(RET ~ SM + DIAB + GH + BP + DIAB*GH, family = binomial, data=retinopathy)
+
+ret_mod_6 <- glm(RET ~ SM + DIAB + GH + BP + DIAB*BP, family = binomial, data=retinopathy)
+
+ret_mod_7 <- glm(RET ~ SM + DIAB + GH + BP + GH*BP, family = binomial, data=retinopathy)
+
+#determine if interaction term in any of the models is significant
+#only interaction term significant at the 95% level is DIAB*BP
+
+summary(ret_mod_6)
+
+#compare the goodness of fit of this model with original model
+
+summary(ret_mod_1)
+
+
+# disable printing in scientific format
+options(scipen=999)
+
+#show AIC and McFadden pseudo-R-squared statistics
+test = c("AIC","McFadden")
+
+PseudoR2(ret_mod_1, which = test)
+PseudoR2(ret_mod_6, which = test)
+
+```
+
+I found that the interaction variable, DIAB*BP, was significant at the 95% significance level.  The model that incorporated this variable had an AIC and MCFadden Pseudo-R-Squared statistic of 638.37 and .222.  Both statistics were favorable when compared to the original model incorporating no interaction terms that had an AIC of 640.94 and McFadden Pseudo-R-Squared of .217. However, if the goal of this analysis is explanation, I would recommend using the simpler model because of the ease of explanation of the predictor variables. 
+
+
+## Task 3 (6 marks)
+
+In this task, you will be using the `esoph` dataset which comes with the core R installation. 
+
+The manual (help) page for the `esoph` dataset states the following:
+
+**Description**
+> Data from a case-control study of (o)esophageal cancer in Ille-et-Vilaine, France.
+> A data frame with records for 88 age/alcohol/tobacco combinations.
+
+**Columns**
+
+`agegp`
+:  Age group: 25--34 years, 35--44 years, 45--54 years, 55--64 years, 65--74 years, 75+ years
+
+`alcgp`
+:  Alcohol consumption:	0--39 gm/day, 40--79 gm/day, 80--119 gm/day, 120+  gm/day
+
+`tobgp`
+:  Tobacco consumption: 0-- 9 gm/day, 10--19 gm/day, 20--29 gm/day, 30+ gm/day
+
+`ncases`
+:  Number of cases	
+
+`ncontrols`
+:  Number of controls
+
+### Task 3.a (2 marks)
+
+Carry out a brief graphical exploratory data analysis: create a separate scatterplot for each of the predictor variables, using the predictor variable for the x-axis and the proportion of cases as the y-axis. Layer/facet each of these plots by the two other predictor variables (the ones not used for the x-axis) to form a grid of sub-plots. If necessary, rotate or adjust the axis labels and/or use the fig.width and fig.height parameters for the R code blocks below to ensure that the resulting plot is legible. Place code for each plot in a separate code block. Write a brief commentary on the data (one or two sentences only).
+
+```{r task3a-1}
+
+#load data and examine the datset
+data(esoph)
+
+#examine the dataset
+head(esoph)
+summary(esoph)
+
+#create column prop_cases
+
+esoph$prop_cases = esoph$ncases / sum(esoph$ncases)
+
+```
+```{r task3a-agpgp_plot}
+
+#create the plot for agpgp
+
+agegp_plot <- ggplot(esoph, aes(agegp, prop_cases)) + geom_point()
+agegp_plot + facet_grid(vars(alcgp), vars(tobgp))
+
+```
+
+```{r task3a-alcgp_plot}
+
+#create the plot for alcgp
+
+alcgp_plot <- ggplot(esoph, aes(alcgp, prop_cases)) + geom_point()
+alcgp_plot + facet_grid(vars(agegp), vars(tobgp))
+
+```
+
+```{r task3a-tobgp_plot}
+
+#create the plot for tobgp
+
+tobgp_plot <- ggplot(esoph, aes(tobgp, prop_cases)) + geom_point()
+tobgp_plot + facet_grid(vars(alcgp), vars(agegp))
+
+```
+
+
+From the above graphs, the most prominent feature I decipher is that the highest proportion of participants fall in the 45-74 age buckets. I also observe that within these age buckets, both tobacco and alcohol usage are close to uniformly distributed. 
+
+### 3.b (2 marks)
+
+Examine the `class()` and/or the `str()` of the `agegp`, `alcgp` and `tobgp` variables in the `esoph` dataset. Fit a binomial GLM with `agegp`, `alcgp` and `tobgp` as the predictors (and `ncases` and `ncontrols` used for the outcome) and display the model object using `summary()`. Describe what you notice about the output. Do some research to discover why the model has been fitted by R in that way, and write a brief (one or two sentence) explanation.
+ 
+```{r task3b}
+# insert your R code (with comment lines if you wish) here
+#examine class of predictor variables
+class(esoph$agegp)
+class(esoph$alcgp)
+class(esoph$tobgp)
+
+levels(esoph$agegp)
+levels(esoph$alcgp)
+levels(esoph$tobgp)
+
+#fit the model to ncases and ncontrols
+esoph_mod <- glm(cbind(ncases, ncontrols) ~ agegp + alcgp + tobgp, family = binomial, data=esoph)
+summary(esoph_mod)
+
+```
+
+My online research concludes that R handles predictors that are ordered factors by fitting the model as a series of polynomial terms within each of the specific predictors. Furthermore, R uses K-1 levels for each of the predictors as a predictor with the lowest ordered level used as the reference level. 
+
+### 3.c (2 marks)
+
+Use `unclass()` on each of the three predictor variables in task 3.b above to convert them to numeric variables and re-fit the model. Can the model be simplified? Justify your response? (2 marks)
+
+
+```{r task3c}
+# insert your R code (with comment lines if you wish) here
+#unclass each of the predictor variables
+esoph$agegp <- unclass(esoph$agegp)
+esoph$alcgp <- unclass(esoph$alcgp)
+esoph$tobgp <- unclass(esoph$tobgp)
+
+#all are integer
+class(esoph$agegp)
+class(esoph$alcgp)
+class(esoph$tobgp)
+
+#fit the model to ncases and ncontrols
+esoph_mod_2 <- glm(cbind(ncases, ncontrols) ~ agegp + alcgp + tobgp, family = binomial, data=esoph)
+summary(esoph_mod_2)
+
+
+```
+
+The simplified model above has an AIC of 229.44 and residual deviance of 73.959 compared to the AIC of 225.45 and residual deviance of 53.973 of the factor predictor model.  Since the performance measures are close, I think the simplified model could be used in this scenario depending on what the final goal of using the model might be. If the goal is only prediction, the more complex model may yield better results. However, if the goal is explanation, the simpler model is the better solution. 
+
+
+## Task 4 (4 marks)
+
+In this task, you will be using the `esdcomp` dataset which comes with the _faraway_ package for R. 
+
+```{r task4-setup}
+
+#load the dataset
+data(esdcomp, package="faraway")
+
+#examine the dataset
+head(esdcomp)
+summary(esdcomp)
+
+```
+
+Read the manual page for the `esdcomp` dataset for background information.
+
+Fit a binomial GLM to the `esdcomp` dataset using the number of complaints out of the number of visits as the outcome, and all the other variables as predictors. Are any of the predictors significant? How well does the model fit the data?
+
+```{r task4}
+#fit model for had_comp outcome variables
+esdcomp_mod <- glm(cbind(complaints,visits) ~ gender+residency+revenue+hours,family='binomial',data=esdcomp)
+
+#summary of model
+summary(esdcomp_mod)
+
+#hours is significant at 95% level.
+
+#compute Pearson's residuals to assess model fit
+
+#Pearson's Statistic
+(pearsons_chisq <- sum(residuals(esdcomp_mod, type = "pearson")^2))
+
+#P-Value for test statistic with n - 4 - 1 degrees of freedom
+1 - pchisq(pearsons_chisq, nrow(esdcomp) - 5)
+
+
+```
+
+
+
+From above, hours is the only predictor variable that is significant (95% level).  The model has an AIC of 187.17 and the residual deviance of 54.44 is lower than the null deviance indicating the model with predictors results in a better fit.  I test this formally by calculating the Pearson's Chi-Square Statistic and p-value, 53.32 and .06 respectively.  The p-value of .06 is non-significant at the 95% level, and thus I fail to reject the null hypothesis that there is no lack-of-fit.  This provides evidence that the model does fit the data reasonably well.  
+
+### Task 5 (2 marks)
+
+Explain in your own words why logistic regression may be unsuitable to model common outcomes. 
+
+For logistic regression to work well, the outcomes must be separable due to differences in the predictor variables.  Common outcomes cause issues because any deviance in the predictor variables still result in the common outcome. As a result, the model may work well (since confidence is high for common outcome to occur anyway) but the logistic regression does not lead to additional knowledge or predictive power. 
+
+
+## Save, knit and submit
+
+**Reminder**: don't forget to save this file, to knit it to check that everything works, and then submit via the drop box in Openlearning.
+
+## Submit your assignment
+
+When you have finished, and are satisfied with your assignment solutions, and this file knits without errors and the output looks the way you want, then you should submit via the drop box in Openlearning.
+
+
+### Problems?
+
+If you encounter problems with any part of the process described above, please contact the course convenor via OpenLearning as soon as possible so that the issues can be resolved in good time, and well before the assignment is due.
