@@ -18,17 +18,7 @@ library(DescTools)
 library(ggplot2)
 ```
 
-
-## Instructions
-
-This file is the R Markdown document in which you need to complete your HDAT9600 Generalised Linear Model assignment. This assignment is assessed and will count for 25% of the total course marks.
-
-You should now complete the tasks described below, in the spaces provided. Don't hesitate to ask the course convenor for help (use the OpenLearning environment to do that) --- but remember that these are **individual** assignments and thus what you submit should be your own work, and you need to both understand and be able to explain what you did in your solutions. The course convenor is happy to point you in the right direction and to make suggestions, but won't, of course, complete your assignment for you!
-
-Each task below attracts the indicated number of marks (out of a total of 20 marks for the assignment).
-
-
-## Task 1 (5 marks)
+## Task 1
 The data set labour.csv is from a 1977 survey of Canadian couples and families. The variables are work, whether the female of the household undertook paid employment either full time or part time (1=did not take paid employment, 0=took paid employment), hincome, income of the male member of the household (in $1000’s), children, a factor variable deﬁning whether children were present in the household and region, a factor with levels: Atlantic, Atlantic Canada; BC, British Columbia; Ontario; Prairie, Prairie provinces; Quebec.
 
 The objective is to understand the inﬂuences on female participation in the labour force.
@@ -110,19 +100,15 @@ auc
 From the above model summary, a female undertaking work was influenced significantly by whether the household had children and the husband's income.  The region in which the household is located was not significant, and no interaction effects between the three predictor variables were found significant. 
 
 
-## Task 2 (3 marks)
+## Task 2
 
 In this task, you will be using the `retinopathy` dataset which comes with the _catdata_ package for R. You will need to install that package using the Packages tab in RStudio or the `install.packages()` function at R console prompt.
-
-Read the manual page for the `?` dataset for background information.
 
 The data has three outcome levels: RET=0: no retinopathy, RET=1 nonproliferative retinopathy, RET=2 advanced retinopathy or blind. For the purposes of this exercise, combine 1 and 2 into 1.
 
 Ensure that the smoking variable is a factor with appropriately ordered levels.
 
-Now fit a series of logistic regression models to the data. The first model should use `RET` as the outcome and the other four variables as predictors. Then fit additional models, each with a single pair-wise interaction term added --- so the first additional model would have the four predictors plus an interaction terms between `SM` and `DIAB`, the next model would have the four predictors plus an interaction terms between `SM` and `GH`, and so on. Make sure you have fitted models with all possible pair-wise interaction terms. Thus, each additional model should have the four predictors plus a single interaction term.
-
-Determine if the interaction term in any of the additional models is significant. Compare the goodness-of-fit of this model with the goodness-of-fit of the original model with no interaction terms, using the AIC and one of the several available pseudo-R-squared statistics. Comment on whether the model with the interaction term is preferable, if the goal is explanation, rather than prediction.
+Now fit a series of logistic regression models to the data.  Determine if the interaction term in any of the additional models is significant. Compare the goodness-of-fit of this model with the goodness-of-fit of the original model with no interaction terms, using the AIC and one of the several available pseudo-R-squared statistics. Comment on whether the model with the interaction term is preferable, if the goal is explanation, rather than prediction.
 
 ```{r task2}
 
@@ -189,7 +175,7 @@ PseudoR2(ret_mod_6, which = test)
 I found that the interaction variable, DIAB*BP, was significant at the 95% significance level.  The model that incorporated this variable had an AIC and MCFadden Pseudo-R-Squared statistic of 638.37 and .222.  Both statistics were favorable when compared to the original model incorporating no interaction terms that had an AIC of 640.94 and McFadden Pseudo-R-Squared of .217. However, if the goal of this analysis is explanation, I would recommend using the simpler model because of the ease of explanation of the predictor variables. 
 
 
-## Task 3 (6 marks)
+## Task 3
 
 In this task, you will be using the `esoph` dataset which comes with the core R installation. 
 
@@ -216,7 +202,7 @@ The manual (help) page for the `esoph` dataset states the following:
 `ncontrols`
 :  Number of controls
 
-### Task 3.a (2 marks)
+### Task 3.a 
 
 Carry out a brief graphical exploratory data analysis: create a separate scatterplot for each of the predictor variables, using the predictor variable for the x-axis and the proportion of cases as the y-axis. Layer/facet each of these plots by the two other predictor variables (the ones not used for the x-axis) to form a grid of sub-plots. If necessary, rotate or adjust the axis labels and/or use the fig.width and fig.height parameters for the R code blocks below to ensure that the resulting plot is legible. Place code for each plot in a separate code block. Write a brief commentary on the data (one or two sentences only).
 
@@ -264,7 +250,7 @@ tobgp_plot + facet_grid(vars(alcgp), vars(agegp))
 
 From the above graphs, the most prominent feature I decipher is that the highest proportion of participants fall in the 45-74 age buckets. I also observe that within these age buckets, both tobacco and alcohol usage are close to uniformly distributed. 
 
-### 3.b (2 marks)
+### 3.b 
 
 Examine the `class()` and/or the `str()` of the `agegp`, `alcgp` and `tobgp` variables in the `esoph` dataset. Fit a binomial GLM with `agegp`, `alcgp` and `tobgp` as the predictors (and `ncases` and `ncontrols` used for the outcome) and display the model object using `summary()`. Describe what you notice about the output. Do some research to discover why the model has been fitted by R in that way, and write a brief (one or two sentence) explanation.
  
@@ -287,9 +273,9 @@ summary(esoph_mod)
 
 My online research concludes that R handles predictors that are ordered factors by fitting the model as a series of polynomial terms within each of the specific predictors. Furthermore, R uses K-1 levels for each of the predictors as a predictor with the lowest ordered level used as the reference level. 
 
-### 3.c (2 marks)
+### 3.c 
 
-Use `unclass()` on each of the three predictor variables in task 3.b above to convert them to numeric variables and re-fit the model. Can the model be simplified? Justify your response? (2 marks)
+Use `unclass()` on each of the three predictor variables in task 3.b above to convert them to numeric variables and re-fit the model. Can the model be simplified? Justify your response?
 
 
 ```{r task3c}
@@ -314,7 +300,7 @@ summary(esoph_mod_2)
 The simplified model above has an AIC of 229.44 and residual deviance of 73.959 compared to the AIC of 225.45 and residual deviance of 53.973 of the factor predictor model.  Since the performance measures are close, I think the simplified model could be used in this scenario depending on what the final goal of using the model might be. If the goal is only prediction, the more complex model may yield better results. However, if the goal is explanation, the simpler model is the better solution. 
 
 
-## Task 4 (4 marks)
+## Task 4
 
 In this task, you will be using the `esdcomp` dataset which comes with the _faraway_ package for R. 
 
@@ -357,22 +343,9 @@ summary(esdcomp_mod)
 
 From above, hours is the only predictor variable that is significant (95% level).  The model has an AIC of 187.17 and the residual deviance of 54.44 is lower than the null deviance indicating the model with predictors results in a better fit.  I test this formally by calculating the Pearson's Chi-Square Statistic and p-value, 53.32 and .06 respectively.  The p-value of .06 is non-significant at the 95% level, and thus I fail to reject the null hypothesis that there is no lack-of-fit.  This provides evidence that the model does fit the data reasonably well.  
 
-### Task 5 (2 marks)
+### Task 5
 
 Explain in your own words why logistic regression may be unsuitable to model common outcomes. 
 
 For logistic regression to work well, the outcomes must be separable due to differences in the predictor variables.  Common outcomes cause issues because any deviance in the predictor variables still result in the common outcome. As a result, the model may work well (since confidence is high for common outcome to occur anyway) but the logistic regression does not lead to additional knowledge or predictive power. 
 
-
-## Save, knit and submit
-
-**Reminder**: don't forget to save this file, to knit it to check that everything works, and then submit via the drop box in Openlearning.
-
-## Submit your assignment
-
-When you have finished, and are satisfied with your assignment solutions, and this file knits without errors and the output looks the way you want, then you should submit via the drop box in Openlearning.
-
-
-### Problems?
-
-If you encounter problems with any part of the process described above, please contact the course convenor via OpenLearning as soon as possible so that the issues can be resolved in good time, and well before the assignment is due.
